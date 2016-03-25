@@ -41,6 +41,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.JsonSyntaxException;
+import com.umeng.analytics.MobclickAgent;
+
+import java.net.UnknownHostException;
 
 import butterknife.Bind;
 import butterknife.ButterKnife;
@@ -76,6 +79,8 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
 
     @Bind(R.id.iv_favorite)
     ImageView mIvFavorite;
+    @Bind(R.id.iv_paste)
+    ImageView mIvPaste;
     @Bind(R.id.tv_clear)
     TextView mTvClear;
     @Bind(R.id.rl_action)
@@ -104,7 +109,11 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     @Override
     public void onResume() {
         super.onResume();
-        SpUtils.setAppFront(this,true);
+        if(BuildConfig.DEBUG){
+            SpUtils.setAppFront(this,false);
+        }else{
+            SpUtils.setAppFront(this,true);
+        }
     }
 
     @Override
@@ -125,6 +134,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     private void checkVersion() {
         if (BuildConfig.DEBUG) return;
         mPresenter.checkVersionAndShowChangeLog();
+
     }
 
     private void startListenService() {
@@ -164,19 +174,24 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
         switch (item.getItemId()) {
             case R.id.menu_opinion:
                 NavigationManager.gotoSendEmail(this);
+                MobclickAgent.onEvent(this,"menu_opinion");
                 break;
             case R.id.menu_book:
                 WordsBookActivity.gotoWordsBook(this);
+                MobclickAgent.onEvent(this,"open_book");
                 break;
             case R.id.menu_about:
                 DialogUtil.showAbout(this);
+                MobclickAgent.onEvent(this,"menu_about");
                 closeKeyboard();
                 break;
             case R.id.menu_score:
                 mPresenter.gotoMarket();
+                MobclickAgent.onEvent(this,"menu_score");
                 break;
             case R.id.menu_support:
                 DialogUtil.showSupport(this);
+                MobclickAgent.onEvent(this,"menu_support");
                 break;
 
             case R.id.menu_open_jit_or_nor:
@@ -214,17 +229,17 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
                 selectIntervalTime(item, EIntervalTipTime.THIRTY_MINUTE.name());
                 break;
 
-            case R.id.duration_one_second:
+            case R.id.duration_two_second:
                 selectDurationTime(item, EDurationTipTime.ONE_SECOND.name());
+                MobclickAgent.onEvent(this,"menu_duration_time_2");
                 break;
             case R.id.duration_four_second:
                 selectDurationTime(item, EDurationTipTime.FOUR_SECOND.name());
+                MobclickAgent.onEvent(this,"menu_duration_time_4");
                 break;
             case R.id.duration_six_second:
                 selectDurationTime(item, EDurationTipTime.SIX_SECOND.name());
-                break;
-            case R.id.duration_ten_second:
-                selectDurationTime(item, EDurationTipTime.TEN_SECOND.name());
+                MobclickAgent.onEvent(this,"menu_duration_time_6");
                 break;
         }
         return super.onOptionsItemSelected(item);
@@ -260,6 +275,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     private void addListener() {
         mInput.setOnKeyListener((v, keyCode, event) -> {
             if ((event.getAction() == KeyEvent.ACTION_DOWN) && (keyCode == KeyEvent.KEYCODE_ENTER)) {
+                MobclickAgent.onEvent(this,"action_translate_by_keyboard");
                 translate();
                 return true;
             }
@@ -291,12 +307,15 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
                 switch (position) {
                     case 0:
                         selectEngine(ETranslateFrom.BAI_DU);
+                        MobclickAgent.onEvent(getApplicationContext(),"way_baidu");
                         break;
                     case 1:
                         selectEngine(ETranslateFrom.YOU_DAO);
+                        MobclickAgent.onEvent(getApplicationContext(),"way_youdao");
                         break;
                     case 2:
                         selectEngine(ETranslateFrom.JIN_SHAN);
+                        MobclickAgent.onEvent(getApplicationContext(),"way_jinshan");
                         break;
                 }
             }
@@ -353,25 +372,26 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     @Override
     public void onPrepareTranslate() {
         mList.removeAllViews();
-        mList.addView(ViewUtil.getWordsView(MainActivity.this, "正在翻译...", R.color.gray,false));
         mRlAction.setVisibility(View.GONE);
+        mBtTranslate.setText(R.string.action_translating);
         mBtTranslate.setEnabled(false);
+        mIvFavorite.setEnabled(false);
+        mIvPaste.setEnabled(false);
     }
-
-    @Override
-    public void onClearResultViews() {
-        mList.removeAllViews();
-    }
-
 
     @Override
     public void onError(Throwable e) {
-        String msg = e.getMessage();
+        String msg;
         if (e instanceof JsonSyntaxException) {
-            msg = "不支持的查询操作，你可以切换到别的翻译方式碰碰运气,Good luck~";
+            msg = getString(R.string.tip_fail_translate)+ (BuildConfig.DEBUG ? "  "+e.getMessage():"");
+        }else if(e instanceof UnknownHostException){
+            msg = getString(R.string.tip_unknown_host)+ (BuildConfig.DEBUG ? "  "+e.getMessage():"");
+        }else{
+            msg = getString(R.string.tip_unknown)+ (BuildConfig.DEBUG ? "  "+e.getMessage():"");
         }
         mList.addView(ViewUtil.getWordsView(MainActivity.this, msg, android.R.color.holo_red_light,false));
         mBtTranslate.setEnabled(true);
+        mBtTranslate.setText(R.string.action_translate);
     }
 
     @Override
@@ -388,16 +408,13 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     public void initDurationTimeSetting(Menu menu, EDurationTipTime durationTime) {
         switch (durationTime) {
             case ONE_SECOND:
-                menu.findItem(R.id.duration_one_second).setChecked(true);
+                menu.findItem(R.id.duration_two_second).setChecked(true);
                 break;
             case FOUR_SECOND:
                 menu.findItem(R.id.duration_four_second).setChecked(true);
                 break;
             case SIX_SECOND:
                 menu.findItem(R.id.duration_six_second).setChecked(true);
-                break;
-            case TEN_SECOND:
-                menu.findItem(R.id.duration_ten_second).setChecked(true);
                 break;
         }
     }
@@ -425,12 +442,15 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
 
     @OnClick(R.id.bt_translate)
     public void onClickTranslate(View view) {
+        MobclickAgent.onEvent(getApplicationContext(),"action_translate");
         translate();
     }
 
     @OnClick(R.id.tv_clear)
     public void onClickClear(View view) {
+        MobclickAgent.onEvent(getApplicationContext(),"action_clear");
         resetView();
+        InputMethodUtils.openSoftKeyboard(this,mInput);
     }
 
     private void resetView() {
@@ -452,6 +472,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
 
     @OnClick(R.id.iv_favorite)
     public void onClickFavorite(View view) {
+        MobclickAgent.onEvent(getApplicationContext(),"favorite_main");
         Object obj = view.getTag();
         if (obj != null && obj instanceof AbsResult) {
             AbsResult entity = (AbsResult) obj;
@@ -471,6 +492,7 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
 
     @OnClick(R.id.iv_paste)
     public void onClickPaste(View view){
+        MobclickAgent.onEvent(getApplicationContext(),"action_paste");
         closeKeyboard();
         Toast.makeText(MainActivity.this, "长按翻译结果可复制", Toast.LENGTH_SHORT).show();
     }
@@ -497,10 +519,9 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
     }
 
     @Override
-    public void onTranslateSuccess(AbsResult result) {
+    public void onGetDataSuccess(AbsResult result) {
         if (result == null) return;
-        mBtTranslate.setEnabled(true);
-        mRlAction.setVisibility(View.VISIBLE);
+
         mIvFavorite.setTag(result);
         if (mPresenter.isFavorite(result.wrapQuery())) {
             mIvFavorite.setImageResource(R.drawable.ic_favorite_pink_24dp);
@@ -509,6 +530,16 @@ public class MainActivity extends BaseActivity<MainPresenter> implements IMainVi
             mIvFavorite.setImageResource(R.drawable.ic_favorite_border_black_24dp);
             isFavorite = false;
         }
+    }
+
+    @Override
+    public void onTranslateComplete() {
+        mBtTranslate.setEnabled(true);
+        mBtTranslate.setText(R.string.action_translate);
+        mRlAction.setVisibility(View.VISIBLE);
+
+        mIvFavorite.setEnabled(true);
+        mIvPaste.setEnabled(true);
     }
 
     private void initSpinner() {

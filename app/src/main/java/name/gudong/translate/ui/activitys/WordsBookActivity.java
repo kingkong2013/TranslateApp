@@ -25,10 +25,15 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import butterknife.Bind;
@@ -50,6 +55,8 @@ public class WordsBookActivity extends BaseActivity<BookPresenter> implements Wo
     @Bind(R.id.empty_tip_text)
     TextView emptyTipText;
 
+    private  List<Result> mResult = new ArrayList<>();
+
     WordsListAdapter mAdapter;
 
     public static void gotoWordsBook(Context context) {
@@ -65,6 +72,39 @@ public class WordsBookActivity extends BaseActivity<BookPresenter> implements Wo
         initActionBar(true, "单词本");
         initListView();
         initData();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.book,menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.sort_index_asc:
+                item.setChecked(true);
+                Collections.sort(mResult, new Comparator<Result>() {
+                    @Override
+                    public int compare(Result lhs, Result rhs) {
+                        return lhs.getQuery().compareToIgnoreCase(rhs.getQuery());
+                    }
+                });
+                mAdapter.update(mResult);
+                break;
+            case R.id.sort_index_desc:
+                item.setChecked(true);
+                Collections.sort(mResult, new Comparator<Result>() {
+                    @Override
+                    public int compare(Result lhs, Result rhs) {
+                        return -lhs.getQuery().compareToIgnoreCase(rhs.getQuery());
+                    }
+                });
+                mAdapter.update(mResult);
+                break;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void initData() {
@@ -101,12 +141,14 @@ public class WordsBookActivity extends BaseActivity<BookPresenter> implements Wo
         } else {
             emptyTipText.setVisibility(View.GONE);
             mAdapter.update(transResultEntities);
+            mResult = transResultEntities;
         }
     }
 
     @Override
     public void deleteWordSuccess(Result entity) {
         mAdapter.removeItem(entity);
+        showDeleteTip("删除成功");
         if (mAdapter.getItemCount() == 0) {
             emptyTipText.setVisibility(View.VISIBLE);
         }
@@ -114,11 +156,20 @@ public class WordsBookActivity extends BaseActivity<BookPresenter> implements Wo
 
     @Override
     public void deleteWordFail() {
-        Toast.makeText(WordsBookActivity.this, "删除失败", Toast.LENGTH_SHORT).show();
+        showDeleteTip("删除失败");
     }
 
     @Override
     public void onError(Throwable error) {
-        Toast.makeText(WordsBookActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
+        showDeleteTip(error.getMessage());
+    }
+
+    /***
+     * show delete operation text
+     *
+     * @param showText
+     */
+    private void showDeleteTip(String showText) {
+        Toast.makeText(WordsBookActivity.this, showText, Toast.LENGTH_SHORT).show();
     }
 }
