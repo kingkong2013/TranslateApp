@@ -119,3 +119,4 @@ Google+ [咕咚翻译社群](https://plus.google.com/u/1/communities/11191908638
      You should have received a copy of the GNU General Public License
      along with GdTranslate.  If not, see <http://www.gnu.org/licenses/>.
 
+Test
